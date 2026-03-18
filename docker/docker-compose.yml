@@ -32,6 +32,9 @@ services:
     command:
       - start-dev
       - --import-realm
+      - --spi-theme-static-max-age=-1
+      - --spi-theme-cache-themes=false
+      - --spi-theme-cache-templates=false
     environment:
       KC_DB: postgres
       KC_DB_URL: jdbc:postgresql://goldcar-db:5432/goldcar_legacy
@@ -41,6 +44,9 @@ services:
       KC_BOOTSTRAP_ADMIN_PASSWORD: admin
       KC_HEALTH_ENABLED: "true"
       KC_LOG_LEVEL: INFO
+      # Google SSO - replace with your real values or set in .env file
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-REPLACE_WITH_GOOGLE_CLIENT_ID}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-REPLACE_WITH_GOOGLE_CLIENT_SECRET}
     ports:
       - "8080:8080"
     volumes:

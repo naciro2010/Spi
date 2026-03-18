@@ -1,23 +1,29 @@
 /* ============================================
-   Goldcar Keycloak Login Theme
+   Goldcar Keycloak Theme
    Colors: #F7A800 (gold), #1A1A1A (dark), #FFFFFF (white)
    ============================================ */
 
-/* --- Background --- */
+/* --- Page background --- */
 .login-pf body,
 body.login-pf {
     background-color: #1A1A1A !important;
     background-image: none !important;
+    font-family: 'Segoe UI', Arial, Helvetica, sans-serif;
 }
 
 /* --- Login card --- */
-#kc-login {
+#kc-login,
+#kc-content-wrapper,
+.card-pf {
     background-color: #FFFFFF;
     border-radius: 12px;
-    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
     padding: 30px;
+    max-width: 440px;
+    margin: 0 auto;
 }
 
+/* --- Logo in header --- */
 #kc-header-wrapper {
     text-align: center;
     padding-bottom: 20px;
@@ -35,40 +41,68 @@ body.login-pf {
     background-size: contain;
 }
 
-/* Hide default Keycloak realm name if logo is present */
+/* --- Page title --- */
 #kc-page-title {
     color: #1A1A1A;
     font-weight: 700;
-    font-size: 1.3rem;
+    font-size: 1.4rem;
+    text-align: center;
+    margin-bottom: 24px;
 }
 
-/* --- Buttons --- */
-#kc-login .btn-primary,
-.btn-primary {
-    background-color: #F7A800 !important;
-    border-color: #F7A800 !important;
-    color: #1A1A1A !important;
-    font-weight: 700;
-    border-radius: 6px;
-    padding: 10px 20px;
+/* ============================================
+   Form fields
+   ============================================ */
+.goldcar-field {
+    margin-bottom: 16px;
+}
+
+.goldcar-label {
+    display: block;
+    font-size: 13px;
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 6px;
     text-transform: uppercase;
-    transition: background-color 0.2s;
+    letter-spacing: 0.5px;
 }
 
-#kc-login .btn-primary:hover,
-.btn-primary:hover {
-    background-color: #E09800 !important;
-    border-color: #E09800 !important;
+.goldcar-input {
+    width: 100%;
+    border: 2px solid #E0E0E0;
+    border-radius: 6px;
+    padding: 12px 14px;
+    font-size: 15px;
+    color: #1A1A1A;
+    transition: border-color 0.2s;
+    box-sizing: border-box;
 }
 
-/* --- Input fields --- */
+.goldcar-input:focus {
+    border-color: #F7A800;
+    box-shadow: 0 0 0 3px rgba(247, 168, 0, 0.2);
+    outline: none;
+}
+
+.goldcar-input[aria-invalid="true"] {
+    border-color: #E74C3C;
+}
+
+.goldcar-error {
+    display: block;
+    color: #E74C3C;
+    font-size: 12px;
+    margin-top: 4px;
+}
+
+/* Also style default Keycloak inputs */
 .login-pf input[type="text"],
 .login-pf input[type="password"],
 .login-pf input[type="email"] {
     border: 2px solid #E0E0E0;
     border-radius: 6px;
-    padding: 10px 12px;
-    font-size: 14px;
+    padding: 12px 14px;
+    font-size: 15px;
     transition: border-color 0.2s;
 }
 
@@ -76,11 +110,177 @@ body.login-pf {
 .login-pf input[type="password"]:focus,
 .login-pf input[type="email"]:focus {
     border-color: #F7A800;
-    box-shadow: 0 0 0 2px rgba(247, 168, 0, 0.25);
+    box-shadow: 0 0 0 3px rgba(247, 168, 0, 0.2);
     outline: none;
 }
 
-/* --- Links --- */
+/* ============================================
+   Options row (remember me + forgot password)
+   ============================================ */
+.goldcar-options {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    font-size: 13px;
+}
+
+.goldcar-checkbox {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: #555;
+    cursor: pointer;
+}
+
+.goldcar-link-forgot {
+    color: #F7A800 !important;
+    font-weight: 600;
+    text-decoration: none;
+    font-size: 13px;
+}
+
+.goldcar-link-forgot:hover {
+    color: #E09800 !important;
+    text-decoration: underline;
+}
+
+/* ============================================
+   Buttons
+   ============================================ */
+.goldcar-actions {
+    margin-bottom: 16px;
+}
+
+.goldcar-btn {
+    display: block;
+    width: 100%;
+    padding: 14px 20px;
+    font-size: 15px;
+    font-weight: 700;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    text-align: center;
+    text-decoration: none;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    transition: all 0.2s;
+    box-sizing: border-box;
+}
+
+/* Gold primary button (Sign In, Register) */
+.goldcar-btn-primary,
+.btn-primary {
+    background-color: #F7A800 !important;
+    border-color: #F7A800 !important;
+    color: #1A1A1A !important;
+}
+
+.goldcar-btn-primary:hover,
+.btn-primary:hover {
+    background-color: #E09800 !important;
+    border-color: #E09800 !important;
+}
+
+/* Dark secondary button (Create Account) */
+.goldcar-btn-secondary {
+    background-color: #1A1A1A;
+    color: #FFFFFF;
+    margin-top: 10px;
+}
+
+.goldcar-btn-secondary:hover {
+    background-color: #333333;
+    color: #FFFFFF;
+    text-decoration: none;
+}
+
+/* Outline button (Back to login) */
+.goldcar-btn-outline {
+    background-color: transparent;
+    color: #1A1A1A;
+    border: 2px solid #1A1A1A;
+    margin-top: 10px;
+}
+
+.goldcar-btn-outline:hover {
+    background-color: #1A1A1A;
+    color: #FFFFFF;
+    text-decoration: none;
+}
+
+/* Google button */
+.goldcar-btn-google {
+    background-color: #FFFFFF;
+    color: #333333;
+    border: 2px solid #E0E0E0;
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    text-transform: none;
+}
+
+.goldcar-btn-google:hover {
+    background-color: #F5F5F5;
+    border-color: #CCC;
+    text-decoration: none;
+    color: #333333;
+}
+
+/* ============================================
+   Separator (or)
+   ============================================ */
+.goldcar-separator {
+    display: flex;
+    align-items: center;
+    text-align: center;
+    margin: 20px 0;
+    color: #999;
+    font-size: 13px;
+    text-transform: uppercase;
+}
+
+.goldcar-separator::before,
+.goldcar-separator::after {
+    content: "";
+    flex: 1;
+    border-bottom: 1px solid #E0E0E0;
+}
+
+.goldcar-separator span {
+    padding: 0 14px;
+    color: #999;
+}
+
+/* ============================================
+   Register section
+   ============================================ */
+.goldcar-register {
+    text-align: center;
+    margin-top: 20px;
+    padding-top: 20px;
+    border-top: 1px solid #E0E0E0;
+}
+
+.goldcar-register-text {
+    display: block;
+    color: #666;
+    font-size: 14px;
+    margin-bottom: 4px;
+}
+
+/* ============================================
+   Social providers (hide default Keycloak styles)
+   ============================================ */
+.goldcar-social {
+    margin-bottom: 0;
+}
+
+/* ============================================
+   Links
+   ============================================ */
 .login-pf a,
 #kc-registration a,
 #kc-info a {
@@ -92,22 +292,42 @@ body.login-pf {
     color: #E09800;
 }
 
-/* --- Alert messages --- */
-.alert-error {
+/* ============================================
+   Alert messages
+   ============================================ */
+.alert-error,
+.pf-m-danger {
     background-color: #FFF3F3;
-    border-color: #E74C3C;
+    border: 1px solid #E74C3C;
     color: #C0392B;
     border-radius: 6px;
+    padding: 12px;
+    margin-bottom: 16px;
 }
 
-.alert-success {
+.alert-success,
+.pf-m-success {
     background-color: #F0FFF0;
-    border-color: #27AE60;
+    border: 1px solid #27AE60;
     color: #1E8449;
     border-radius: 6px;
+    padding: 12px;
+    margin-bottom: 16px;
 }
 
-/* --- Footer --- */
+.alert-warning,
+.pf-m-warning {
+    background-color: #FFF9E6;
+    border: 1px solid #F7A800;
+    color: #8B6914;
+    border-radius: 6px;
+    padding: 12px;
+    margin-bottom: 16px;
+}
+
+/* ============================================
+   Footer
+   ============================================ */
 #kc-footer {
     text-align: center;
     color: #888;

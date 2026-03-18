@@ -2,7 +2,8 @@
   "realm": "goldcar",
   "enabled": true,
   "displayName": "Goldcar",
-  "registrationAllowed": false,
+  "registrationAllowed": true,
+  "registrationEmailAsUsername": true,
   "loginWithEmailAllowed": true,
   "duplicateEmailsAllowed": false,
   "resetPasswordAllowed": true,
@@ -13,6 +14,9 @@
   "ssoSessionMaxLifespan": 36000,
   "loginTheme": "goldcar",
   "emailTheme": "goldcar",
+  "internationalizationEnabled": true,
+  "supportedLocales": ["en", "es", "fr"],
+  "defaultLocale": "en",
   "smtpServer": {
     "host": "mailhog",
     "port": "1025",
@@ -74,14 +78,15 @@
   "identityProviders": [
     {
       "alias": "google",
+      "displayName": "Google",
       "providerId": "google",
-      "enabled": false,
+      "enabled": true,
       "trustEmail": true,
       "storeToken": false,
       "firstBrokerLoginFlowAlias": "first broker login",
       "config": {
-        "clientId": "REPLACE_WITH_GOOGLE_CLIENT_ID",
-        "clientSecret": "REPLACE_WITH_GOOGLE_CLIENT_SECRET",
+        "clientId": "${GOOGLE_CLIENT_ID:REPLACE_WITH_GOOGLE_CLIENT_ID}",
+        "clientSecret": "${GOOGLE_CLIENT_SECRET:REPLACE_WITH_GOOGLE_CLIENT_SECRET}",
         "defaultScope": "openid email profile",
         "syncMode": "IMPORT"
       }
