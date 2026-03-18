@@ -1,5 +1,6 @@
 package com.europcar.ciam.goldcar.repository
 
+import com.europcar.ciam.goldcar.util.BcryptValidator
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
@@ -38,7 +39,6 @@ class GoldcarUserRepositoryTest {
     fun setup() {
         postgres.start()
 
-        // Create table and seed data
         DriverManager.getConnection(postgres.jdbcUrl, postgres.username, postgres.password).use { conn ->
             conn.createStatement().use { stmt ->
                 stmt.execute("""
@@ -92,8 +92,7 @@ class GoldcarUserRepositoryTest {
     @Test
     @Order(3)
     fun `findByEmail returns null for non-existing email`() {
-        val user = repository.findByEmail("nonexistent@example.com")
-        assertNull(user)
+        assertNull(repository.findByEmail("nonexistent@example.com"))
     }
 
     @Test
@@ -107,30 +106,52 @@ class GoldcarUserRepositoryTest {
     @Test
     @Order(5)
     fun `findById returns null for non-existing id`() {
-        val user = repository.findById(9999)
-        assertNull(user)
+        assertNull(repository.findById(9999))
     }
 
     @Test
     @Order(6)
-    fun `createUser inserts new user and returns entity`() {
-        val user = repository.createUser("newuser@example.com", "New", "User")
+    fun `createUser without password inserts user`() {
+        val user = repository.createUser("nopass@example.com", null, "No", "Pass")
 
         assertNotNull(user)
-        assertEquals("newuser@example.com", user.email)
-        assertEquals("New", user.nombre)
-        assertEquals("User", user.apellidos)
+        assertEquals("nopass@example.com", user.email)
         assertNull(user.password)
         assertTrue(user.codigoUsuario > 0)
 
-        // Verify it's retrievable
-        val found = repository.findByEmail("newuser@example.com")
+        val found = repository.findByEmail("nopass@example.com")
         assertNotNull(found)
         assertEquals(user.codigoUsuario, found!!.codigoUsuario)
     }
 
     @Test
     @Order(7)
+    fun `createUser with password stores bcrypt hash`() {
+        val hash = BcryptValidator.hash("mypassword")
+        val user = repository.createUser("withpass@example.com", hash, "With", "Pass")
+
+        assertNotNull(user)
+        assertEquals(hash, user.password)
+
+        val found = repository.findByEmail("withpass@example.com")
+        assertNotNull(found)
+        assertTrue(BcryptValidator.verify("mypassword", found!!.password!!))
+    }
+
+    @Test
+    @Order(8)
+    fun `updatePassword changes the stored hash`() {
+        val user = repository.findByEmail("goldcarweb@gmail.com")!!
+        val newHash = BcryptValidator.hash("newpassword")
+
+        assertTrue(repository.updatePassword(user.codigoUsuario, newHash))
+
+        val updated = repository.findByEmail("goldcarweb@gmail.com")!!
+        assertTrue(BcryptValidator.verify("newpassword", updated.password!!))
+    }
+
+    @Test
+    @Order(9)
     fun `searchByEmail returns matching users`() {
         val results = repository.searchByEmail("goldcar", 0, 10)
         assertTrue(results.isNotEmpty())
@@ -138,16 +159,15 @@ class GoldcarUserRepositoryTest {
     }
 
     @Test
-    @Order(8)
+    @Order(10)
     fun `getUsersCount returns correct count`() {
-        val count = repository.getUsersCount()
-        assertTrue(count >= 2) // seed user + created user
+        assertTrue(repository.getUsersCount() >= 2)
     }
 
     @Test
-    @Order(9)
+    @Order(11)
     fun `deleteUser removes user`() {
-        val user = repository.createUser("todelete@example.com", "Delete", "Me")
+        val user = repository.createUser("todelete@example.com", null, "Delete", "Me")
         assertTrue(repository.deleteUser(user.codigoUsuario))
         assertNull(repository.findByEmail("todelete@example.com"))
     }

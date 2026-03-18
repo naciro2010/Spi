@@ -5,6 +5,7 @@ import com.europcar.ciam.goldcar.repository.GoldcarUserRepository
 import com.europcar.ciam.goldcar.util.BcryptValidator
 import org.keycloak.component.ComponentModel
 import org.keycloak.credential.CredentialInput
+import org.keycloak.credential.CredentialInputUpdater
 import org.keycloak.credential.CredentialInputValidator
 import org.keycloak.models.KeycloakSession
 import org.keycloak.models.RealmModel
@@ -24,79 +25,75 @@ class GoldcarUserStorageProvider(
 ) : UserStorageProvider,
     UserLookupProvider,
     CredentialInputValidator,
+    CredentialInputUpdater,
     UserRegistrationProvider,
     UserQueryMethodsProvider {
 
     private val loadedUsers = mutableMapOf<String, UserModel>()
 
-    // --- UserStorageProvider lifecycle ---
-
-    override fun close() {
-        // Provider is per-transaction; repository is managed by factory
-    }
+    override fun close() {}
 
     // --- UserLookupProvider ---
 
-    override fun getUserByUsername(realm: RealmModel, username: String): UserModel? {
-        return getUserByEmail(realm, username)
-    }
+    override fun getUserByUsername(realm: RealmModel, username: String): UserModel? =
+        getUserByEmail(realm, username)
 
     override fun getUserByEmail(realm: RealmModel, email: String): UserModel? {
         loadedUsers[email]?.let { return it }
-
         val entity = repository.findByEmail(email) ?: return null
-        val adapter = GoldcarUserAdapter(session, realm, model, entity)
-        loadedUsers[email] = adapter
-        return adapter
+        return GoldcarUserAdapter(session, realm, model, entity).also { loadedUsers[email] = it }
     }
 
     override fun getUserById(realm: RealmModel, id: String): UserModel? {
-        val storageId = StorageId(id)
-        val externalId = storageId.externalId
-        val codigoUsuario = externalId.toLongOrNull() ?: return null
-
+        val codigoUsuario = StorageId(id).externalId.toLongOrNull() ?: return null
         val entity = repository.findById(codigoUsuario) ?: return null
-        val adapter = GoldcarUserAdapter(session, realm, model, entity)
-        loadedUsers[entity.email] = adapter
-        return adapter
+        return GoldcarUserAdapter(session, realm, model, entity).also { loadedUsers[entity.email] = it }
     }
 
     // --- CredentialInputValidator ---
 
-    override fun supportsCredentialType(credentialType: String): Boolean {
-        return credentialType == PasswordCredentialModel.TYPE
-    }
+    override fun supportsCredentialType(credentialType: String) =
+        credentialType == PasswordCredentialModel.TYPE
 
     override fun isConfiguredFor(realm: RealmModel, user: UserModel, credentialType: String): Boolean {
         if (credentialType != PasswordCredentialModel.TYPE) return false
-        val email = user.email ?: return false
-        val entity = repository.findByEmail(email) ?: return false
+        val entity = repository.findByEmail(user.email ?: return false) ?: return false
         return !entity.password.isNullOrBlank()
     }
 
     override fun isValid(realm: RealmModel, user: UserModel, credentialInput: CredentialInput): Boolean {
         if (credentialInput.type != PasswordCredentialModel.TYPE) return false
-
-        val email = user.email ?: return false
-        val entity = repository.findByEmail(email) ?: return false
+        val entity = repository.findByEmail(user.email ?: return false) ?: return false
         val storedHash = entity.password ?: return false
-
-        val inputPassword = credentialInput.challengeResponse ?: return false
-        return BcryptValidator.verify(inputPassword, storedHash)
+        return BcryptValidator.verify(credentialInput.challengeResponse ?: return false, storedHash)
     }
+
+    // --- CredentialInputUpdater (reset password) ---
+
+    override fun updateCredential(realm: RealmModel, user: UserModel, input: CredentialInput): Boolean {
+        if (input.type != PasswordCredentialModel.TYPE) return false
+        val codigoUsuario = StorageId(user.id).externalId.toLongOrNull() ?: return false
+        val newPassword = input.challengeResponse ?: return false
+        val hash = BcryptValidator.hash(newPassword)
+        return repository.updatePassword(codigoUsuario, hash)
+    }
+
+    override fun disableCredentialType(realm: RealmModel, user: UserModel, credentialType: String) {
+        // Not supported: we don't allow disabling passwords in the legacy DB
+    }
+
+    override fun getDisableableCredentialTypesStream(realm: RealmModel, user: UserModel): Stream<String> =
+        Stream.empty()
 
     // --- UserRegistrationProvider ---
 
     override fun addUser(realm: RealmModel, username: String): UserModel {
-        val entity = repository.createUser(email = username, nombre = null, apellidos = null)
-        val adapter = GoldcarUserAdapter(session, realm, model, entity)
-        loadedUsers[username] = adapter
-        return adapter
+        val entity = repository.createUser(email = username, password = null, nombre = null, apellidos = null)
+        return GoldcarUserAdapter(session, realm, model, entity).also { loadedUsers[username] = it }
     }
 
     override fun removeUser(realm: RealmModel, user: UserModel): Boolean {
-        val storageId = StorageId(user.id)
-        val codigoUsuario = storageId.externalId.toLongOrNull() ?: return false
+        val codigoUsuario = StorageId(user.id).externalId.toLongOrNull() ?: return false
         return repository.deleteUser(codigoUsuario)
     }
 
@@ -109,18 +106,10 @@ class GoldcarUserStorageProvider(
         maxResults: Int?
     ): Stream<UserModel> {
         val search = params[UserModel.SEARCH] ?: params[UserModel.USERNAME] ?: params[UserModel.EMAIL] ?: ""
-        val first = firstResult ?: 0
-        val max = maxResults ?: 100
-
-        val entities = repository.searchByEmail(search, first, max)
-        return entities.stream().map { entity ->
-            val adapter = GoldcarUserAdapter(session, realm, model, entity)
-            loadedUsers[entity.email] = adapter
-            adapter as UserModel
+        return repository.searchByEmail(search, firstResult ?: 0, maxResults ?: 100).stream().map { entity ->
+            GoldcarUserAdapter(session, realm, model, entity).also { loadedUsers[entity.email] = it } as UserModel
         }
     }
 
-    override fun getUsersCount(realm: RealmModel): Int {
-        return repository.getUsersCount()
-    }
+    override fun getUsersCount(realm: RealmModel) = repository.getUsersCount()
 }

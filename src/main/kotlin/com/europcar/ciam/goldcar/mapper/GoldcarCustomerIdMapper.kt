@@ -20,42 +20,19 @@ class GoldcarCustomerIdMapper :
 
     companion object {
         const val PROVIDER_ID = "goldcar-customer-id-mapper"
-        private const val CLAIM_NAME = "goldcar_customer_id"
-
-        private val CONFIG_PROPERTIES: List<ProviderConfigProperty> = listOf(
-            ProviderConfigProperty().apply {
-                name = OIDCAttributeMapperHelper.INCLUDE_IN_ACCESS_TOKEN
-                label = OIDCAttributeMapperHelper.INCLUDE_IN_ACCESS_TOKEN_LABEL
-                type = ProviderConfigProperty.BOOLEAN_TYPE
-                defaultValue = "true"
-                helpText = OIDCAttributeMapperHelper.INCLUDE_IN_ACCESS_TOKEN_HELP_TEXT
-            },
-            ProviderConfigProperty().apply {
-                name = OIDCAttributeMapperHelper.INCLUDE_IN_ID_TOKEN
-                label = OIDCAttributeMapperHelper.INCLUDE_IN_ID_TOKEN_LABEL
-                type = ProviderConfigProperty.BOOLEAN_TYPE
-                defaultValue = "false"
-                helpText = OIDCAttributeMapperHelper.INCLUDE_IN_ID_TOKEN_HELP_TEXT
-            },
-            ProviderConfigProperty().apply {
-                name = OIDCAttributeMapperHelper.INCLUDE_IN_USERINFO
-                label = OIDCAttributeMapperHelper.INCLUDE_IN_USERINFO_LABEL
-                type = ProviderConfigProperty.BOOLEAN_TYPE
-                defaultValue = "false"
-                helpText = OIDCAttributeMapperHelper.INCLUDE_IN_USERINFO_HELP_TEXT
-            }
-        )
     }
 
     override fun getId(): String = PROVIDER_ID
-
     override fun getDisplayCategory(): String = "Token mapper"
-
     override fun getDisplayType(): String = "Goldcar Customer ID"
-
     override fun getHelpText(): String = "Maps the Goldcar USUARIOS.CodigoUsuario to a JWT claim"
+    override fun getProtocolMapperCategory(): String = "Token mapper"
 
-    override fun getConfigProperties(): List<ProviderConfigProperty> = CONFIG_PROPERTIES
+    override fun getConfigProperties(): List<ProviderConfigProperty> = listOf(
+        configProperty(OIDCAttributeMapperHelper.INCLUDE_IN_ACCESS_TOKEN, OIDCAttributeMapperHelper.INCLUDE_IN_ACCESS_TOKEN_LABEL, OIDCAttributeMapperHelper.INCLUDE_IN_ACCESS_TOKEN_HELP_TEXT, "true"),
+        configProperty(OIDCAttributeMapperHelper.INCLUDE_IN_ID_TOKEN, OIDCAttributeMapperHelper.INCLUDE_IN_ID_TOKEN_LABEL, OIDCAttributeMapperHelper.INCLUDE_IN_ID_TOKEN_HELP_TEXT, "false"),
+        configProperty(OIDCAttributeMapperHelper.INCLUDE_IN_USERINFO, OIDCAttributeMapperHelper.INCLUDE_IN_USERINFO_LABEL, OIDCAttributeMapperHelper.INCLUDE_IN_USERINFO_HELP_TEXT, "false"),
+    )
 
     override fun setClaim(
         token: IDToken,
@@ -64,31 +41,18 @@ class GoldcarCustomerIdMapper :
         keycloakSession: KeycloakSession,
         clientSessionCtx: ClientSessionContext
     ) {
-        val user = userSession.user
-        val customerId = user.getFirstAttribute("goldcar_customer_id")
+        val customerId = userSession.user.getFirstAttribute("goldcar_customer_id")
         if (customerId != null) {
             OIDCAttributeMapperHelper.mapClaim(token, mappingModel, customerId)
         }
     }
 
-    override fun getProtocolMapperCategory(): String = "Token mapper"
-
-    /**
-     * Creates a default protocol mapper model for this mapper.
-     */
-    fun createDefaultModel(): ProtocolMapperModel {
-        return ProtocolMapperModel().apply {
-            name = "goldcar-customer-id"
-            protocol = "openid-connect"
-            protocolMapper = PROVIDER_ID
-            isConsentRequired = false
-            config = mutableMapOf(
-                OIDCAttributeMapperHelper.INCLUDE_IN_ACCESS_TOKEN to "true",
-                OIDCAttributeMapperHelper.INCLUDE_IN_ID_TOKEN to "false",
-                OIDCAttributeMapperHelper.INCLUDE_IN_USERINFO to "false",
-                OIDCAttributeMapperHelper.TOKEN_CLAIM_NAME to CLAIM_NAME,
-                OIDCAttributeMapperHelper.JSON_TYPE to "String"
-            )
+    private fun configProperty(name: String, label: String, helpText: String, default: String) =
+        ProviderConfigProperty().apply {
+            this.name = name
+            this.label = label
+            this.type = ProviderConfigProperty.BOOLEAN_TYPE
+            this.defaultValue = default
+            this.helpText = helpText
         }
-    }
 }

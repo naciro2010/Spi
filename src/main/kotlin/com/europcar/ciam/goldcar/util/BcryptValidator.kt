@@ -4,7 +4,7 @@ import org.mindrot.jbcrypt.BCrypt
 
 object BcryptValidator {
 
-    fun verify(rawPassword: String, bcryptHash: String): Boolean {
-        return BCrypt.checkpw(rawPassword, bcryptHash)
-    }
+    fun hash(rawPassword: String): String = BCrypt.hashpw(rawPassword, BCrypt.gensalt(10))
+
+    fun verify(rawPassword: String, bcryptHash: String): Boolean = BCrypt.checkpw(rawPassword, bcryptHash)
 }

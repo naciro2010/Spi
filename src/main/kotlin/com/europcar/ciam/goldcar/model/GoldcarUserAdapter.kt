@@ -13,52 +13,32 @@ class GoldcarUserAdapter(
     private val entity: GoldcarUserEntity
 ) : AbstractUserAdapterFederatedStorage(session, realm, storageComponentModel) {
 
-    override fun getId(): String {
-        return StorageId(storageProviderModel.id, entity.codigoUsuario.toString()).id
+    companion object {
+        private val READ_ONLY_ATTRS = setOf("goldcar_customer_id", "phone")
     }
+
+    override fun getId(): String =
+        StorageId(storageProviderModel.id, entity.codigoUsuario.toString()).id
 
     override fun getUsername(): String = entity.email
-
-    override fun setUsername(username: String?) {
-        // Read-only from the legacy DB perspective
-    }
+    override fun setUsername(username: String?) {}
 
     override fun getEmail(): String = entity.email
-
-    override fun setEmail(email: String?) {
-        // Read-only
-    }
-
+    override fun setEmail(email: String?) {}
     override fun isEmailVerified(): Boolean = true
 
     override fun getFirstName(): String? = entity.nombre
-
-    override fun setFirstName(firstName: String?) {
-        // Read-only
-    }
+    override fun setFirstName(firstName: String?) {}
 
     override fun getLastName(): String? = entity.apellidos
-
-    override fun setLastName(lastName: String?) {
-        // Read-only
-    }
+    override fun setLastName(lastName: String?) {}
 
     override fun isEnabled(): Boolean = true
 
-    override fun setSingleAttribute(name: String?, value: String?) {
-        if (name == "goldcar_customer_id" || name == "phone") {
-            // These are read-only attributes derived from the legacy DB
-            return
-        }
-        super.setSingleAttribute(name, value)
-    }
-
-    override fun getFirstAttribute(name: String?): String? {
-        return when (name) {
-            "goldcar_customer_id" -> entity.codigoUsuario.toString()
-            "phone" -> entity.telefono
-            else -> super.getFirstAttribute(name)
-        }
+    override fun getFirstAttribute(name: String?): String? = when (name) {
+        "goldcar_customer_id" -> entity.codigoUsuario.toString()
+        "phone" -> entity.telefono
+        else -> super.getFirstAttribute(name)
     }
 
     override fun getAttributes(): Map<String, List<String>> {
@@ -68,17 +48,15 @@ class GoldcarUserAdapter(
         return attrs
     }
 
+    override fun setSingleAttribute(name: String?, value: String?) {
+        if (name !in READ_ONLY_ATTRS) super.setSingleAttribute(name, value)
+    }
+
     override fun setAttribute(name: String?, values: MutableList<String>?) {
-        if (name == "goldcar_customer_id" || name == "phone") {
-            return
-        }
-        super.setAttribute(name, values)
+        if (name !in READ_ONLY_ATTRS) super.setAttribute(name, values)
     }
 
     override fun removeAttribute(name: String?) {
-        if (name == "goldcar_customer_id" || name == "phone") {
-            return
-        }
-        super.removeAttribute(name)
+        if (name !in READ_ONLY_ATTRS) super.removeAttribute(name)
     }
 }
