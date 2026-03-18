@@ -46,27 +46,28 @@ build/libs/goldcar-user-storage-spi-1.0.0.jar
 
 ### Step 3 - What Docker will start
 
-Docker starts 2 containers:
+Docker starts 3 containers:
 
 | Name | Image | Port | What it is |
 |---|---|---|---|
 | `goldcar-db` | `postgres:16-alpine` | `5433` | The Goldcar database |
-| `keycloak` | `quay.io/keycloak/keycloak:26.2.4` | `8080` | Keycloak server with the plugin |
+| `keycloak` | `quay.io/keycloak/keycloak:26.2.4` | `8080` | Keycloak server with plugin + Goldcar theme |
+| `mailhog` | `mailhog/mailhog` | `8025` | Fake SMTP server to see emails in browser |
 
 How they connect:
 
 ```
-┌───────────────────────────────────────────────┐
-│              Docker Network                    │
-│                                                │
-│  ┌────────────┐      ┌────────────────────┐   │
-│  │ goldcar-db  │◄─────│    keycloak         │   │
-│  │ PostgreSQL  │      │ + plugin JAR        │   │
-│  │ port 5432   │      │ + realm config      │   │
-│  └──────┬─────┘      └─────────┬──────────┘   │
-└─────────┼──────────────────────┼───────────────┘
-          │                      │
-     localhost:5433         localhost:8080
+┌──────────────────────────────────────────────────────────────┐
+│                     Docker Network                            │
+│                                                               │
+│  ┌────────────┐  ┌────────────────────┐  ┌──────────────┐   │
+│  │ goldcar-db  │◄─│    keycloak         │──►│   mailhog     │   │
+│  │ PostgreSQL  │  │ + plugin JAR        │  │ SMTP :1025   │   │
+│  │ port 5432   │  │ + goldcar theme     │  │ Web  :8025   │   │
+│  └──────┬─────┘  └─────────┬──────────┘  └──────┬───────┘   │
+└─────────┼──────────────────┼─────────────────────┼────────────┘
+          │                  │                     │
+     localhost:5433     localhost:8080         localhost:8025
 ```
 
 ### Step 4 - Start Docker
@@ -86,10 +87,15 @@ This will:
      - Name: `Test User`
      - Phone: `+34600000000`
 
-2. Start **Keycloak**:
+2. Start **MailHog** (fake email server):
+   - SMTP on port `1025` (Keycloak sends emails here)
+   - Web UI on port `8025` (you see the emails here)
+
+3. Start **Keycloak**:
    - Connects to PostgreSQL
    - Loads the plugin JAR
-   - Imports the `goldcar` realm
+   - Loads the Goldcar theme (login + email)
+   - Imports the `goldcar` realm with SMTP config pointing to MailHog
 
 ### Step 5 - Check that everything is running
 
@@ -103,6 +109,7 @@ You should see:
 NAME                 STATUS
 goldcar-legacy-db    running (healthy)
 goldcar-keycloak     running
+goldcar-mailhog      running
 ```
 
 Wait about 30 seconds for Keycloak to start. Watch the logs:
@@ -124,7 +131,8 @@ Open your browser:
 | URL | What it is |
 |---|---|
 | http://localhost:8080/admin | Admin console |
-| http://localhost:8080/realms/goldcar | Goldcar realm endpoint |
+| http://localhost:8080/realms/goldcar/account | User login page (Goldcar theme) |
+| http://localhost:8025 | MailHog - see all emails sent by Keycloak |
 
 Login:
 - Username: `admin`
@@ -186,7 +194,20 @@ VALUES ('test@example.com', '\$2a\$10\$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad6
 
 The password hash above is `1234567`.
 
-### Step 10 - Stop everything
+### Step 10 - Test reset password
+
+1. Open http://localhost:8080/realms/goldcar/account in your browser
+2. Click **Sign In**
+3. You see the Goldcar themed login page (dark background, gold button)
+4. Click **Forgot Password?**
+5. Enter `goldcarweb@gmail.com` and submit
+6. Open http://localhost:8025 (MailHog) in another tab
+7. You see the reset password email with Goldcar branding
+8. Click the link in the email
+9. Set a new password
+10. Log in with the new password
+
+### Step 11 - Stop everything
 
 ```bash
 cd docker
@@ -198,6 +219,79 @@ To also delete the database data:
 ```bash
 docker compose down -v
 ```
+
+---
+
+## Goldcar theme customization
+
+The theme files are in `docker/themes/goldcar/`. Changes are live-reloaded (no rebuild needed, just restart Keycloak).
+
+### File structure
+
+```
+docker/themes/goldcar/
+├── login/                          # Login page theme
+│   ├── theme.properties            # Inherits from default keycloak theme
+│   └── resources/
+│       ├── css/goldcar.css         # Custom CSS (colors, buttons, inputs)
+│       └── img/goldcar-logo.svg    # Logo (replace with real Goldcar logo)
+│
+└── email/                          # Email theme
+    ├── theme.properties            # Inherits from default keycloak theme
+    ├── html/
+    │   ├── password-reset.ftl      # HTML reset password email
+    │   └── email-verification.ftl  # HTML email verification
+    ├── text/
+    │   ├── password-reset.ftl      # Plain text reset password email
+    │   └── email-verification.ftl  # Plain text email verification
+    └── messages/
+        ├── messages_en.properties  # English text
+        ├── messages_es.properties  # Spanish text
+        └── messages_fr.properties  # French text
+```
+
+### How to change the colors
+
+Edit `docker/themes/goldcar/login/resources/css/goldcar.css`:
+
+| What | CSS variable | Default |
+|---|---|---|
+| Background | `body` background-color | `#1A1A1A` (dark) |
+| Buttons | `.btn-primary` background-color | `#F7A800` (gold) |
+| Button text | `.btn-primary` color | `#1A1A1A` (dark) |
+| Links | `a` color | `#F7A800` (gold) |
+| Input focus | `input:focus` border-color | `#F7A800` (gold) |
+
+### How to change the logo
+
+Replace `docker/themes/goldcar/login/resources/img/goldcar-logo.svg` with the real Goldcar logo file (SVG or PNG).
+
+If you use a PNG, update `goldcar.css`:
+
+```css
+#kc-header-wrapper::before {
+    background-image: url("../img/your-logo.png");
+}
+```
+
+### How to change the emails
+
+Edit the `.ftl` files in `docker/themes/goldcar/email/html/`. These are FreeMarker templates with inline CSS (for email client compatibility).
+
+Available variables in email templates:
+- `${user.firstName}` - user first name
+- `${link}` - the reset/verify link
+- `${linkExpiration}` - how long the link is valid
+- `${msg("key")}` - translated text from `messages/` folder
+
+### After changing theme files
+
+```bash
+cd docker
+docker compose restart keycloak
+```
+
+No need to rebuild the JAR. Just restart Keycloak.
 
 ---
 

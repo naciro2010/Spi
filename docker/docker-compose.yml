@@ -19,6 +19,13 @@ services:
       timeout: 5s
       retries: 5
 
+  mailhog:
+    image: mailhog/mailhog:latest
+    container_name: goldcar-mailhog
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+
   keycloak:
     image: quay.io/keycloak/keycloak:26.2.4
     container_name: goldcar-keycloak
@@ -39,6 +46,7 @@ services:
     volumes:
       - ../build/libs/goldcar-user-storage-spi-1.0.0.jar:/opt/keycloak/providers/goldcar-user-storage-spi.jar
       - ./realm-goldcar.json:/opt/keycloak/data/import/realm-goldcar.json
+      - ./themes/goldcar:/opt/keycloak/themes/goldcar
     depends_on:
       goldcar-db:
         condition: service_healthy

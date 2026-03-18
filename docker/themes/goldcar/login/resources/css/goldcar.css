@@ -1,0 +1,115 @@
+/* ============================================
+   Goldcar Keycloak Login Theme
+   Colors: #F7A800 (gold), #1A1A1A (dark), #FFFFFF (white)
+   ============================================ */
+
+/* --- Background --- */
+.login-pf body,
+body.login-pf {
+    background-color: #1A1A1A !important;
+    background-image: none !important;
+}
+
+/* --- Login card --- */
+#kc-login {
+    background-color: #FFFFFF;
+    border-radius: 12px;
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.3);
+    padding: 30px;
+}
+
+#kc-header-wrapper {
+    text-align: center;
+    padding-bottom: 20px;
+}
+
+#kc-header-wrapper::before {
+    content: "";
+    display: block;
+    width: 180px;
+    height: 60px;
+    margin: 0 auto 10px auto;
+    background-image: url("../img/goldcar-logo.svg");
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: contain;
+}
+
+/* Hide default Keycloak realm name if logo is present */
+#kc-page-title {
+    color: #1A1A1A;
+    font-weight: 700;
+    font-size: 1.3rem;
+}
+
+/* --- Buttons --- */
+#kc-login .btn-primary,
+.btn-primary {
+    background-color: #F7A800 !important;
+    border-color: #F7A800 !important;
+    color: #1A1A1A !important;
+    font-weight: 700;
+    border-radius: 6px;
+    padding: 10px 20px;
+    text-transform: uppercase;
+    transition: background-color 0.2s;
+}
+
+#kc-login .btn-primary:hover,
+.btn-primary:hover {
+    background-color: #E09800 !important;
+    border-color: #E09800 !important;
+}
+
+/* --- Input fields --- */
+.login-pf input[type="text"],
+.login-pf input[type="password"],
+.login-pf input[type="email"] {
+    border: 2px solid #E0E0E0;
+    border-radius: 6px;
+    padding: 10px 12px;
+    font-size: 14px;
+    transition: border-color 0.2s;
+}
+
+.login-pf input[type="text"]:focus,
+.login-pf input[type="password"]:focus,
+.login-pf input[type="email"]:focus {
+    border-color: #F7A800;
+    box-shadow: 0 0 0 2px rgba(247, 168, 0, 0.25);
+    outline: none;
+}
+
+/* --- Links --- */
+.login-pf a,
+#kc-registration a,
+#kc-info a {
+    color: #F7A800;
+    font-weight: 600;
+}
+
+.login-pf a:hover {
+    color: #E09800;
+}
+
+/* --- Alert messages --- */
+.alert-error {
+    background-color: #FFF3F3;
+    border-color: #E74C3C;
+    color: #C0392B;
+    border-radius: 6px;
+}
+
+.alert-success {
+    background-color: #F0FFF0;
+    border-color: #27AE60;
+    color: #1E8449;
+    border-radius: 6px;
+}
+
+/* --- Footer --- */
+#kc-footer {
+    text-align: center;
+    color: #888;
+    font-size: 12px;
+}

@@ -11,6 +11,17 @@
   "accessTokenLifespan": 300,
   "ssoSessionIdleTimeout": 1800,
   "ssoSessionMaxLifespan": 36000,
+  "loginTheme": "goldcar",
+  "emailTheme": "goldcar",
+  "smtpServer": {
+    "host": "mailhog",
+    "port": "1025",
+    "from": "noreply@goldcar.com",
+    "fromDisplayName": "Goldcar",
+    "ssl": "false",
+    "starttls": "false",
+    "auth": "false"
+  },
   "components": {
     "org.keycloak.storage.UserStorageProvider": [
       {
