@@ -8,7 +8,7 @@
   "duplicateEmailsAllowed": false,
   "resetPasswordAllowed": true,
   "editUsernameAllowed": false,
-  "sslRequired": "external",
+  "sslRequired": "none",
   "accessTokenLifespan": 300,
   "ssoSessionIdleTimeout": 1800,
   "ssoSessionMaxLifespan": 36000,
@@ -18,13 +18,15 @@
   "supportedLocales": ["en", "es", "fr"],
   "defaultLocale": "en",
   "smtpServer": {
-    "host": "mailhog",
-    "port": "1025",
-    "from": "noreply@goldcar.com",
+    "host": "${SMTP_HOST:mailhog}",
+    "port": "${SMTP_PORT:1025}",
+    "from": "${SMTP_FROM:noreply@goldcar.com}",
     "fromDisplayName": "Goldcar",
-    "ssl": "false",
-    "starttls": "false",
-    "auth": "false"
+    "ssl": "${SMTP_SSL:false}",
+    "starttls": "${SMTP_STARTTLS:false}",
+    "auth": "${SMTP_AUTH:false}",
+    "user": "${SMTP_USER:}",
+    "password": "${SMTP_PASSWORD:}"
   },
   "components": {
     "org.keycloak.storage.UserStorageProvider": [
@@ -32,9 +34,9 @@
         "name": "goldcar-user-storage",
         "providerId": "goldcar-user-storage",
         "config": {
-          "jdbc-url": ["jdbc:postgresql://goldcar-db:5432/goldcar_legacy"],
-          "db-user": ["goldcar"],
-          "db-password": ["goldcar"],
+          "jdbc-url": ["${KC_DB_URL:jdbc:postgresql://goldcar-db:5432/goldcar_legacy}"],
+          "db-user": ["${KC_DB_USERNAME:goldcar}"],
+          "db-password": ["${KC_DB_PASSWORD:goldcar}"],
           "priority": ["0"],
           "enabled": ["true"],
           "cachePolicy": ["DEFAULT"]
@@ -52,7 +54,8 @@
       "standardFlowEnabled": true,
       "redirectUris": [
         "gcapp://callback",
-        "http://localhost:8080/*"
+        "http://localhost:8080/*",
+        "https://*.up.railway.app/*"
       ],
       "webOrigins": ["*"],
       "attributes": {

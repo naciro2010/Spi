@@ -524,7 +524,203 @@ docker compose restart keycloak
 
 Tests need Docker running (Testcontainers starts a PostgreSQL container automatically).
 
-## Deploy to production
+## Deploy to Railway (step by step)
+
+Railway runs everything in the cloud. You get a URL like `https://goldcar-keycloak.up.railway.app`.
+
+### What Railway will run
+
+```
+┌──────────────────────────────────────────────────┐
+│                  Railway Project                  │
+│                                                   │
+│  ┌──────────────┐      ┌──────────────────────┐  │
+│  │  PostgreSQL   │◄─────│  Keycloak Service     │  │
+│  │  (Railway     │      │  (Dockerfile)         │  │
+│  │   plugin)     │      │  + SPI plugin JAR     │  │
+│  │               │      │  + Goldcar theme      │  │
+│  └──────────────┘      │  + realm config        │  │
+│                         └──────────────────────┘  │
+└──────────────────────────────────────────────────┘
+```
+
+The `Dockerfile` does a multi-stage build:
+1. **Stage 1** (builder): uses Java 21 to compile the Kotlin plugin into a fat JAR
+2. **Stage 2** (keycloak): copies the JAR + theme + realm into the Keycloak image, runs `kc.sh build` for optimized mode
+
+The `railway-entrypoint.sh` script:
+1. Waits for PostgreSQL to be ready
+2. Creates the `USUARIOS` table and seed user (idempotent)
+3. Starts Keycloak in production mode with realm import
+
+### Step 1 - Create a Railway account
+
+1. Go to https://railway.app
+2. Sign up (GitHub login recommended)
+3. You get $5 free credit (enough for testing)
+
+### Step 2 - Install the Railway CLI
+
+```bash
+# Mac
+brew install railway
+
+# Linux
+curl -fsSL https://railway.app/install.sh | sh
+
+# Or use npm
+npm install -g @railway/cli
+```
+
+Login:
+```bash
+railway login
+```
+
+### Step 3 - Create a new project
+
+```bash
+cd Spi
+railway init
+```
+
+Choose **"Empty Project"** when asked.
+
+### Step 4 - Add a PostgreSQL database
+
+```bash
+railway add --plugin postgresql
+```
+
+This creates a PostgreSQL instance. Railway automatically sets these env vars:
+- `DATABASE_URL`
+- `PGHOST`, `PGPORT`, `PGUSER`, `PGPASSWORD`, `PGDATABASE`
+
+### Step 5 - Set environment variables
+
+```bash
+# Keycloak admin credentials
+railway variables set KC_BOOTSTRAP_ADMIN_USERNAME=admin
+railway variables set KC_BOOTSTRAP_ADMIN_PASSWORD=<choose-a-strong-password>
+
+# Database connection (use Railway's PostgreSQL)
+railway variables set KC_DB=postgres
+railway variables set KC_DB_URL=\${{Postgres.JDBC_DATABASE_URL}}
+railway variables set KC_DB_USERNAME=\${{Postgres.PGUSER}}
+railway variables set KC_DB_PASSWORD=\${{Postgres.PGPASSWORD}}
+
+# Google SSO (optional - skip if you don't need it)
+railway variables set GOOGLE_CLIENT_ID=your-google-client-id
+railway variables set GOOGLE_CLIENT_SECRET=your-google-client-secret
+```
+
+**For SMTP (to send real emails)**, use a service like SendGrid, Mailgun, or Gmail:
+
+```bash
+# Example with SendGrid
+railway variables set SMTP_HOST=smtp.sendgrid.net
+railway variables set SMTP_PORT=587
+railway variables set SMTP_FROM=noreply@goldcar.com
+railway variables set SMTP_SSL=false
+railway variables set SMTP_STARTTLS=true
+railway variables set SMTP_AUTH=true
+railway variables set SMTP_USER=apikey
+railway variables set SMTP_PASSWORD=SG.your-sendgrid-api-key
+
+# Example with Gmail
+railway variables set SMTP_HOST=smtp.gmail.com
+railway variables set SMTP_PORT=587
+railway variables set SMTP_FROM=your-email@gmail.com
+railway variables set SMTP_SSL=false
+railway variables set SMTP_STARTTLS=true
+railway variables set SMTP_AUTH=true
+railway variables set SMTP_USER=your-email@gmail.com
+railway variables set SMTP_PASSWORD=your-gmail-app-password
+```
+
+### Step 6 - Deploy
+
+```bash
+railway up
+```
+
+This will:
+1. Push your code to Railway
+2. Build the Docker image (multi-stage: compile JAR + Keycloak)
+3. Start the container
+4. Run the entrypoint (init DB + start Keycloak)
+
+The build takes about 3-5 minutes the first time.
+
+### Step 7 - Get your public URL
+
+```bash
+railway domain
+```
+
+Railway gives you a URL like: `https://goldcar-keycloak-production.up.railway.app`
+
+### Step 8 - Update Google OAuth redirect URI
+
+If you use Google SSO, go to Google Cloud Console and add the redirect URI:
+
+```
+https://your-railway-url.up.railway.app/realms/goldcar/broker/google/endpoint
+```
+
+### Step 9 - Test it
+
+Open your Railway URL:
+
+| URL | What it is |
+|---|---|
+| `https://your-url.up.railway.app/admin` | Admin console |
+| `https://your-url.up.railway.app/realms/goldcar/account` | Login page (Goldcar theme) |
+
+Login with the admin credentials you set in Step 5.
+
+Test with curl:
+```bash
+KEYCLOAK_URL=https://your-url.up.railway.app
+
+curl -s -X POST $KEYCLOAK_URL/realms/goldcar/protocol/openid-connect/token \
+  -d "grant_type=password" \
+  -d "client_id=gcapp-ios" \
+  -d "username=goldcarweb@gmail.com" \
+  -d "password=1234567" | jq .
+```
+
+### Step 10 - Check logs if something goes wrong
+
+```bash
+railway logs
+```
+
+### All Railway environment variables
+
+| Variable | Required | Default | Description |
+|---|---|---|---|
+| `KC_DB` | yes | - | Set to `postgres` |
+| `KC_DB_URL` | yes | - | JDBC URL (from Railway Postgres plugin) |
+| `KC_DB_USERNAME` | yes | - | DB user (from Railway Postgres plugin) |
+| `KC_DB_PASSWORD` | yes | - | DB password (from Railway Postgres plugin) |
+| `KC_BOOTSTRAP_ADMIN_USERNAME` | yes | - | Keycloak admin username |
+| `KC_BOOTSTRAP_ADMIN_PASSWORD` | yes | - | Keycloak admin password |
+| `GOOGLE_CLIENT_ID` | no | `REPLACE_WITH_GOOGLE_CLIENT_ID` | Google OAuth2 client ID |
+| `GOOGLE_CLIENT_SECRET` | no | `REPLACE_WITH_GOOGLE_CLIENT_SECRET` | Google OAuth2 client secret |
+| `SMTP_HOST` | no | `mailhog` | SMTP server host |
+| `SMTP_PORT` | no | `1025` | SMTP server port |
+| `SMTP_FROM` | no | `noreply@goldcar.com` | From email address |
+| `SMTP_SSL` | no | `false` | Use SSL |
+| `SMTP_STARTTLS` | no | `false` | Use STARTTLS |
+| `SMTP_AUTH` | no | `false` | SMTP authentication |
+| `SMTP_USER` | no | - | SMTP username |
+| `SMTP_PASSWORD` | no | - | SMTP password |
+| `PORT` | auto | `8080` | Set automatically by Railway |
+
+---
+
+## Deploy to a server (manual)
 
 1. Copy the JAR:
    ```bash
