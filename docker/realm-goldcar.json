@@ -1,0 +1,79 @@
+{
+  "realm": "goldcar",
+  "enabled": true,
+  "displayName": "Goldcar",
+  "registrationAllowed": false,
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "resetPasswordAllowed": true,
+  "editUsernameAllowed": false,
+  "sslRequired": "external",
+  "accessTokenLifespan": 300,
+  "ssoSessionIdleTimeout": 1800,
+  "ssoSessionMaxLifespan": 36000,
+  "components": {
+    "org.keycloak.storage.UserStorageProvider": [
+      {
+        "name": "goldcar-user-storage",
+        "providerId": "goldcar-user-storage",
+        "config": {
+          "jdbc-url": ["jdbc:postgresql://goldcar-db:5432/goldcar_legacy"],
+          "db-user": ["goldcar"],
+          "db-password": ["goldcar"],
+          "priority": ["0"],
+          "enabled": ["true"],
+          "cachePolicy": ["DEFAULT"]
+        }
+      }
+    ]
+  },
+  "clients": [
+    {
+      "clientId": "gcapp-ios",
+      "name": "Goldcar iOS App",
+      "enabled": true,
+      "publicClient": true,
+      "directAccessGrantsEnabled": true,
+      "standardFlowEnabled": true,
+      "redirectUris": [
+        "gcapp://callback",
+        "http://localhost:8080/*"
+      ],
+      "webOrigins": ["*"],
+      "attributes": {
+        "pkce.code.challenge.method": "S256"
+      },
+      "protocolMappers": [
+        {
+          "name": "goldcar-customer-id",
+          "protocol": "openid-connect",
+          "protocolMapper": "goldcar-customer-id-mapper",
+          "consentRequired": false,
+          "config": {
+            "include.in.access.token": "true",
+            "include.in.id.token": "false",
+            "include.in.userinfo": "false",
+            "claim.name": "goldcar_customer_id",
+            "jsonType.label": "String"
+          }
+        }
+      ]
+    }
+  ],
+  "identityProviders": [
+    {
+      "alias": "google",
+      "providerId": "google",
+      "enabled": false,
+      "trustEmail": true,
+      "storeToken": false,
+      "firstBrokerLoginFlowAlias": "first broker login",
+      "config": {
+        "clientId": "REPLACE_WITH_GOOGLE_CLIENT_ID",
+        "clientSecret": "REPLACE_WITH_GOOGLE_CLIENT_SECRET",
+        "defaultScope": "openid email profile",
+        "syncMode": "IMPORT"
+      }
+    }
+  ]
+}

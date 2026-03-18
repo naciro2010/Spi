@@ -1,0 +1,47 @@
+version: "3.9"
+
+services:
+  goldcar-db:
+    image: postgres:16-alpine
+    container_name: goldcar-legacy-db
+    environment:
+      POSTGRES_DB: goldcar_legacy
+      POSTGRES_USER: goldcar
+      POSTGRES_PASSWORD: goldcar
+    ports:
+      - "5433:5432"
+    volumes:
+      - ./init-scripts:/docker-entrypoint-initdb.d
+      - goldcar-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U goldcar -d goldcar_legacy"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.2.4
+    container_name: goldcar-keycloak
+    command:
+      - start-dev
+      - --import-realm
+    environment:
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://goldcar-db:5432/goldcar_legacy
+      KC_DB_USERNAME: goldcar
+      KC_DB_PASSWORD: goldcar
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: admin
+      KC_HEALTH_ENABLED: "true"
+      KC_LOG_LEVEL: INFO
+    ports:
+      - "8080:8080"
+    volumes:
+      - ../build/libs/goldcar-user-storage-spi-1.0.0.jar:/opt/keycloak/providers/goldcar-user-storage-spi.jar
+      - ./realm-goldcar.json:/opt/keycloak/data/import/realm-goldcar.json
+    depends_on:
+      goldcar-db:
+        condition: service_healthy
+
+volumes:
+  goldcar-db-data:
