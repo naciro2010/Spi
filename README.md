@@ -1,108 +1,103 @@
 # Goldcar User Storage SPI Plugin
 
-Keycloak User Storage SPI plugin that bridges the centralized CIAM infrastructure (Keycloak 26.x) with the legacy Goldcar database (SIGGER), enabling existing Goldcar users to authenticate via OIDC without migrating their data.
+Keycloak plugin to let Goldcar users log in with their existing database accounts (SIGGER). No data migration needed.
 
-## Prerequisites
+## What you need
 
-- Java 21 (LTS)
-- Docker & Docker Compose (for local development)
-- Gradle (or use the included wrapper)
+- Java 21
+- Docker and Docker Compose
+- Gradle
 
-## Architecture
+## What is inside
 
-| Component | Description |
+| File | What it does |
 |---|---|
-| `GoldcarUserStorageProviderFactory` | Singleton factory; creates per-transaction providers |
-| `GoldcarUserStorageProvider` | Implements user lookup, credential validation, registration, and search |
-| `GoldcarUserAdapter` | Maps `USUARIOS` rows to Keycloak's `UserModel` |
-| `GoldcarUserRepository` | JDBC data access with HikariCP connection pooling |
-| `BcryptValidator` | bcrypt password verification using jBCrypt |
-| `GoldcarCustomerIdMapper` | OIDC protocol mapper that adds `goldcar_customer_id` claim to JWT |
+| `GoldcarUserStorageProviderFactory` | Creates the provider |
+| `GoldcarUserStorageProvider` | Finds users, checks passwords, creates accounts |
+| `GoldcarUserAdapter` | Turns a database row into a Keycloak user |
+| `GoldcarUserRepository` | Talks to the database |
+| `BcryptValidator` | Checks bcrypt passwords |
+| `GoldcarCustomerIdMapper` | Adds `goldcar_customer_id` to the JWT token |
 
 ---
 
-## Guide de deploiement local (step-by-step)
+## How to run locally (step by step)
 
-Ce guide explique comment lancer le plugin en local avec Docker (base de donnees PostgreSQL + Keycloak).
-
-### Etape 1 : Cloner le repository
+### Step 1 - Clone the project
 
 ```bash
-git clone <url-du-repo>
+git clone <your-repo-url>
 cd Spi
 ```
 
-### Etape 2 : Compiler le plugin (fat JAR)
-
-Compilez le plugin avec le Shadow JAR qui inclut toutes les dependances necessaires :
+### Step 2 - Build the plugin
 
 ```bash
 ./gradlew shadowJar
 ```
 
-Le fichier JAR est genere dans :
+This creates the file:
 
 ```
 build/libs/goldcar-user-storage-spi-1.0.0.jar
 ```
 
-> **Note** : Cette etape est **obligatoire** avant de lancer Docker, car le `docker-compose.yml` monte ce JAR dans le conteneur Keycloak.
+**You must do this before starting Docker.** Docker needs this file.
 
-### Etape 3 : Comprendre l'infrastructure Docker
+### Step 3 - What Docker will start
 
-Le fichier `docker/docker-compose.yml` demarre deux conteneurs :
+Docker starts 2 containers:
 
-| Service | Image | Port expose | Description |
+| Name | Image | Port | What it is |
 |---|---|---|---|
-| `goldcar-db` | `postgres:16-alpine` | `5433` (host) → `5432` (container) | Base de donnees PostgreSQL legacy Goldcar |
-| `keycloak` | `quay.io/keycloak/keycloak:26.2.4` | `8080` | Serveur Keycloak avec le plugin SPI deploye |
+| `goldcar-db` | `postgres:16-alpine` | `5433` | The Goldcar database |
+| `keycloak` | `quay.io/keycloak/keycloak:26.2.4` | `8080` | Keycloak server with the plugin |
 
-**Schema reseau :**
+How they connect:
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│                    Docker Network                        │
-│                                                          │
-│  ┌──────────────┐       ┌──────────────────────────┐    │
-│  │  goldcar-db   │◄──────│       keycloak            │    │
-│  │  PostgreSQL   │       │  Keycloak 26.2.4          │    │
-│  │  Port: 5432   │       │  + goldcar-spi.jar        │    │
-│  └──────┬───────┘       │  + realm-goldcar.json     │    │
-│         │                └──────────┬───────────────┘    │
-└─────────┼───────────────────────────┼────────────────────┘
-          │                           │
-    Host:5433                   Host:8080
+┌───────────────────────────────────────────────┐
+│              Docker Network                    │
+│                                                │
+│  ┌────────────┐      ┌────────────────────┐   │
+│  │ goldcar-db  │◄─────│    keycloak         │   │
+│  │ PostgreSQL  │      │ + plugin JAR        │   │
+│  │ port 5432   │      │ + realm config      │   │
+│  └──────┬─────┘      └─────────┬──────────┘   │
+└─────────┼──────────────────────┼───────────────┘
+          │                      │
+     localhost:5433         localhost:8080
 ```
 
-### Etape 4 : Demarrer les conteneurs
+### Step 4 - Start Docker
 
 ```bash
 cd docker
 docker compose up -d
 ```
 
-**Ce qui se passe automatiquement :**
+This will:
 
-1. **PostgreSQL** demarre et execute le script `docker/init-scripts/01-init.sql` qui :
-   - Cree la table `USUARIOS` (schema legacy Goldcar)
-   - Insere un utilisateur de test :
-     - Email : `goldcarweb@gmail.com`
-     - Mot de passe : `1234567` (hash bcrypt)
-     - Nom : `Test User`
-     - Telephone : `+34600000000`
+1. Start **PostgreSQL** and run `docker/init-scripts/01-init.sql`:
+   - Creates the `USUARIOS` table
+   - Adds a test user:
+     - Email: `goldcarweb@gmail.com`
+     - Password: `1234567`
+     - Name: `Test User`
+     - Phone: `+34600000000`
 
-2. **Keycloak** demarre en mode `start-dev` et :
-   - Se connecte a PostgreSQL (via le reseau Docker interne)
-   - Charge le plugin SPI depuis `build/libs/goldcar-user-storage-spi-1.0.0.jar`
-   - Importe le realm `goldcar` depuis `docker/realm-goldcar.json`
+2. Start **Keycloak**:
+   - Connects to PostgreSQL
+   - Loads the plugin JAR
+   - Imports the `goldcar` realm
 
-### Etape 5 : Verifier que les conteneurs sont en marche
+### Step 5 - Check that everything is running
 
 ```bash
 docker compose ps
 ```
 
-Vous devez voir les deux services `running` / `healthy` :
+You should see:
 
 ```
 NAME                 STATUS
@@ -110,44 +105,45 @@ goldcar-legacy-db    running (healthy)
 goldcar-keycloak     running
 ```
 
-Attendez environ 30 secondes que Keycloak finisse de demarrer. Vous pouvez surveiller les logs :
+Wait about 30 seconds for Keycloak to start. Watch the logs:
 
 ```bash
 docker compose logs -f keycloak
 ```
 
-Attendez de voir le message :
+Wait until you see:
 
 ```
 Keycloak 26.2.4 on JVM (powered by Quarkus) started
 ```
 
-### Etape 6 : Acceder a la console d'administration Keycloak
+### Step 6 - Open Keycloak admin
 
-Ouvrez votre navigateur et allez sur :
+Open your browser:
 
-| URL | Description |
+| URL | What it is |
 |---|---|
-| http://localhost:8080/admin | Console d'administration Keycloak |
-| http://localhost:8080/realms/goldcar | Endpoint du realm Goldcar |
+| http://localhost:8080/admin | Admin console |
+| http://localhost:8080/realms/goldcar | Goldcar realm endpoint |
 
-**Identifiants admin :**
-- Utilisateur : `admin`
-- Mot de passe : `admin`
+Login:
+- Username: `admin`
+- Password: `admin`
 
-### Etape 7 : Verifier la configuration du plugin
+### Step 7 - Check the plugin is loaded
 
-1. Connectez-vous a http://localhost:8080/admin avec `admin / admin`
-2. Selectionnez le realm **goldcar** dans le menu deroulant en haut a gauche
-3. Allez dans **User Federation** dans le menu de gauche
-4. Vous devez voir le provider **goldcar-user-storage** configure avec :
-   - JDBC URL : `jdbc:postgresql://goldcar-db:5432/goldcar_legacy`
-   - DB User : `goldcar`
-   - DB Password : `goldcar`
+1. Go to http://localhost:8080/admin
+2. Log in with `admin / admin`
+3. Select the **goldcar** realm (top left dropdown)
+4. Click **User Federation** in the left menu
+5. You should see **goldcar-user-storage** with:
+   - JDBC URL: `jdbc:postgresql://goldcar-db:5432/goldcar_legacy`
+   - DB User: `goldcar`
+   - DB Password: `goldcar`
 
-### Etape 8 : Tester l'authentification
+### Step 8 - Test login
 
-#### Via curl (Direct Grant / ROPC)
+Run this command to get a token:
 
 ```bash
 curl -s -X POST http://localhost:8080/realms/goldcar/protocol/openid-connect/token \
@@ -157,51 +153,47 @@ curl -s -X POST http://localhost:8080/realms/goldcar/protocol/openid-connect/tok
   -d "password=1234567" | jq .
 ```
 
-**Reponse attendue :** un JSON contenant `access_token`, `refresh_token`, `token_type`, etc.
+You should get a JSON with `access_token`, `refresh_token`, etc.
 
-#### Decoder le JWT pour verifier le claim `goldcar_customer_id`
+To see what is inside the token (check `goldcar_customer_id`):
 
 ```bash
-# Recuperer le token
 TOKEN=$(curl -s -X POST http://localhost:8080/realms/goldcar/protocol/openid-connect/token \
   -d "grant_type=password" \
   -d "client_id=gcapp-ios" \
   -d "username=goldcarweb@gmail.com" \
   -d "password=1234567" | jq -r '.access_token')
 
-# Decoder le payload du JWT (partie 2, base64)
 echo "$TOKEN" | cut -d'.' -f2 | base64 -d 2>/dev/null | jq .
 ```
 
-Vous devriez voir le claim `goldcar_customer_id` dans le payload du token.
+### Step 9 - Look at the database (optional)
 
-### Etape 9 : Acceder directement a la base de donnees (optionnel)
-
-Pour inspecter les donnees de la table `USUARIOS` :
+See all users:
 
 ```bash
 docker exec -it goldcar-legacy-db psql -U goldcar -d goldcar_legacy -c "SELECT * FROM USUARIOS;"
 ```
 
-Pour ajouter un utilisateur de test supplementaire :
+Add a new test user:
 
 ```bash
 docker exec -it goldcar-legacy-db psql -U goldcar -d goldcar_legacy -c "
 INSERT INTO USUARIOS (Email, Password, Nombre, Apellidos, Telefono)
-VALUES ('test@example.com', '\$2a\$10\$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 'Nuevo', 'Usuario', '+34611111111');
+VALUES ('test@example.com', '\$2a\$10\$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 'New', 'User', '+34611111111');
 "
 ```
 
-> Le mot de passe hash ci-dessus correspond a `1234567`.
+The password hash above is `1234567`.
 
-### Etape 10 : Arreter l'environnement
+### Step 10 - Stop everything
 
 ```bash
 cd docker
 docker compose down
 ```
 
-Pour supprimer egalement les donnees persistantes (volumes) :
+To also delete the database data:
 
 ```bash
 docker compose down -v
@@ -209,59 +201,59 @@ docker compose down -v
 
 ---
 
-## Cycle de developpement
+## Development workflow
 
-Lorsque vous modifiez le code du plugin et souhaitez tester vos changements :
+When you change the plugin code:
 
 ```bash
-# 1. Recompiler le plugin
+# 1. Build again
 ./gradlew shadowJar
 
-# 2. Redemarrer Keycloak pour charger le nouveau JAR
+# 2. Restart Keycloak to load the new JAR
 cd docker
 docker compose restart keycloak
 
-# 3. Verifier les logs
+# 3. Check the logs
 docker compose logs -f keycloak
 ```
 
-## Lancer les tests unitaires et d'integration
+## Run tests
 
 ```bash
 ./gradlew test
 ```
 
-> **Note** : Les tests du repository necessitent Docker car Testcontainers demarre un conteneur PostgreSQL automatiquement.
+Tests need Docker running (Testcontainers starts a PostgreSQL container automatically).
 
-## Deploiement en production
+## Deploy to production
 
-1. Copier le JAR dans le dossier `providers` de Keycloak :
+1. Copy the JAR:
    ```bash
    cp build/libs/goldcar-user-storage-spi-1.0.0.jar /opt/keycloak/providers/
    ```
 
-2. Reconstruire Keycloak (mode optimise) :
+2. Build Keycloak:
    ```bash
    /opt/keycloak/bin/kc.sh build
    ```
 
-3. Redemarrer Keycloak.
+3. Restart Keycloak.
 
-## Configuration manuelle du provider
+## Manual plugin setup
 
-Si le realm n'est pas importe automatiquement, configurez le plugin manuellement dans la console Keycloak :
+If the realm is not imported automatically:
 
-1. Allez dans **User Federation** > **Add Provider** > **goldcar-user-storage**
-2. Configurez :
-   - **JDBC URL** : `jdbc:postgresql://<host>:5432/goldcar_legacy`
-   - **Database User** : le nom d'utilisateur de la base
-   - **Database Password** : le mot de passe de la base
-3. Sauvegardez
+1. Go to **User Federation** > **Add Provider** > **goldcar-user-storage**
+2. Fill in:
+   - **JDBC URL**: `jdbc:postgresql://<host>:5432/goldcar_legacy`
+   - **Database User**: your db username
+   - **Database Password**: your db password
+3. Save
 
-## Securite
+## Security
 
-- Parameterized SQL queries (no string concatenation)
-- DB credentials stored in Keycloak's encrypted component config
-- bcrypt constant-time comparison (jBCrypt)
-- `goldcar_customer_id` and `phone` attributes are read-only
-- No passwords or hashes are logged
+- SQL queries use parameters (no injection)
+- DB credentials are stored encrypted in Keycloak
+- bcrypt with constant-time comparison
+- `goldcar_customer_id` and `phone` are read-only
+- No passwords are logged
